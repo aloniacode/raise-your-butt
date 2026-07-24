@@ -5,18 +5,19 @@ Tauri 2 桌面应用 — 系统托盘常驻，按设定间隔触发「系统通�
 ## 功能
 
 - 🖥️ **常驻系统托盘** — 启动后无主窗口，右下角托盘可见。
-- 🪟 **托盘左键打开设置** — 自定义弹窗包含：提醒间隔（分钟）、开机自启动开关、抖动强度滑块（1–10），并提供「测试抖动」按钮。
+- 🪟 **托盘左键打开设置** — 自定义弹窗包含：提醒间隔（分钟）、抖动强度滑块（1–10）、提醒窗口关闭方式（自动 / 手动）、自动模式下的显示时长（2–30 秒）、开机自启动开关，并提供「测试抖动」按钮。
 - 💾 **设置自动持久化** — 通过 `tauri-plugin-store` 写入 `%APPDATA%` 下的 `settings.json`，重启后保留。
 - ⏰ **后台倒计时** — Rust tokio 任务到点触发；修改间隔立即重置（不需等当前周期走完）。
 - 🔔 **系统通知** — 「该起身活动啦！久坐伤身，起来走走吧」。
-- 💥 **屏幕抖动** — 通过 `tauri` 原生 `WebviewWindow::set_position` 在一个全屏透明、置顶、跳过任务栏的「覆盖层窗口」上跑 36 步阻尼正弦位移（≈ 800ms），叠加覆盖层卡片自身的 CSS 抖动;2.5s 后自动隐藏。
+- 💥 **屏幕抖动** — 通过 `tauri` 原生 `WebviewWindow::set_position` 在一个全屏透明、置顶、跳过任务栏的「覆盖层窗口」上跑 36 步阻尼正弦位移（≈ 800ms），叠加覆盖层卡片自身的 CSS 抖动；抖动循环跑在 `tauri::async_runtime`（tokio）任务上，不占用独立 OS 线程。
+- 🚪 **提醒窗口关闭模式** — **自动模式**：抖动结束后按设定时长（默认 5 秒）自动隐藏覆盖层；**手动模式**：覆盖层不自动消失，显示「我知道了」关闭按钮，点击后才隐藏。
 - 🚀 **开机自启动** — 通过 `tauri-plugin-autostart` 注册 / 注销 Windows Run-key。
 - 🎨 **铅笔画风格图标** — 白底黑线的小人从椅子上起身 + 向上箭头，传达「起身活动」。
 
 ## 技术栈
 
 - **Tauri 2** (Windows 目标)
-- **React 18 + TypeScript + Vite 5**
+- **React 19 + TypeScript + Vite 8**
 - **Rust 异步**：tokio（`select!` + `Notify` 实现可重置定时器）
 - 插件：`tauri-plugin-autostart`、`tauri-plugin-store`、`tauri-plugin-notification`
 
@@ -46,9 +47,9 @@ raise-your-butt/
 │       ├── lib.rs              # Tauri 装配：插件、状态、托盘、窗口事件钩子
 │       ├── config.rs           # AppConfig + 通过 store 加载/保存
 │       ├── timer.rs            # 后台倒计时 + Notify 重置
-│       ├── shake.rs            # 覆盖层显示 + set_position 抖动循环 + 自动隐藏
+│       ├── shake.rs            # 覆盖层显示 + 异步 set_position 抖动循环 + 按模式自动/手动隐藏
 │       ├── tray.rs             # 托盘图标 + 右键菜单 + 左键唤出设置
-│       └── commands.rs         # get_config / set_config / trigger_shake / test_shake
+│       └── commands.rs         # get_config / set_config / trigger_shake / test_shake / close_overlay
 └── README.md
 ```
 
@@ -67,7 +68,7 @@ raise-your-butt/
 ## 启动开发模式
 
 ```powershell
-cd D:\WorkSpace\private-porjects\raise-your-butt
+cd D:\WorkSpace\raise-your-butt
 
 # 第一次：安装前端依赖
 pnpm install
@@ -121,7 +122,10 @@ pnpm tauri build
   按需求，移动其它用户的窗口风险高（窗口可能移出可见区域、最大化窗口不可被 `SetWindowPos` 移动）；覆盖层干净可逆。
 - **抖动为什么用 `set_position` 而不是 Win32 `SetWindowPos`？**
 
-  本会话环境的 shell 不可用，无法 `cargo build` 验证 FFI 版本兼容性，所以选择了纯 Tauri 2 API 路线（最终仍是底层调用 Win32），可编译性更高。若需要更激进的抖动可以加 `windows` + `raw-window-handle` crate 后改为直接调 `SetWindowPos`。
+  纯 Tauri 2 API 路线（底层仍是 Win32），可编译性高、跨平台友好；若需要更激进的抖动可加 `windows` + `raw-window-handle` crate 改为直接调 `SetWindowPos`。
+- **抖动循环为什么跑在 tokio 而不是独立线程？**
+
+  36 帧、每帧 `sleep` ≈22ms 的动画用 `tauri::async_runtime::spawn` + `tokio::time::sleep` 协作调度，帧间让出执行权，避免为一个 800ms 动画独占一整个 OS 线程。`set_position` 是快速同步窗口调用，在 async 任务里直接调用开销可忽略。
 - **为什么关窗口不退出进程？**
 
   常驻托盘应用 — `CloseRequested` 触发 `prevent_close()` + `hide()`，进程继续运行以维持定时器和托盘图标。
