@@ -1,6 +1,7 @@
 use tauri::{AppHandle, Manager};
 use tauri_plugin_autostart::ManagerExt;
 
+use crate::config::{OverlayMode, OVERLAY_DURATION_MAX, OVERLAY_DURATION_MIN};
 use crate::AppState;
 
 #[derive(serde::Serialize)]
@@ -8,6 +9,8 @@ pub struct ConfigDto {
     pub interval_min: u32,
     pub autostart: bool,
     pub intensity: u32,
+    pub overlay_mode: OverlayMode,
+    pub overlay_duration_sec: u32,
 }
 
 #[tauri::command]
@@ -20,6 +23,8 @@ pub fn get_config(state: tauri::State<'_, AppState>) -> ConfigDto {
         interval_min: c.interval_min,
         autostart: c.autostart,
         intensity: c.intensity,
+        overlay_mode: c.overlay_mode,
+        overlay_duration_sec: c.overlay_duration_sec,
     }
 }
 
@@ -30,6 +35,8 @@ pub fn set_config(
     interval_min: Option<u32>,
     autostart: Option<bool>,
     intensity: Option<u32>,
+    overlay_mode: Option<String>,
+    overlay_duration_sec: Option<u32>,
 ) -> Result<(), String> {
     // Update + persist + capture the new config while holding the lock briefly.
     let (new_cfg, interval_changed) = {
@@ -47,6 +54,15 @@ pub fn set_config(
         if let Some(v) = intensity {
             c.intensity = v.clamp(1, 10);
         }
+        if let Some(m) = overlay_mode {
+            c.overlay_mode = match m.as_str() {
+                "manual" => OverlayMode::Manual,
+                _ => OverlayMode::Auto,
+            };
+        }
+        if let Some(v) = overlay_duration_sec {
+            c.overlay_duration_sec = v.clamp(OVERLAY_DURATION_MIN, OVERLAY_DURATION_MAX);
+        }
         c.save(&app)?;
         let changed = old_interval != c.interval_min;
         (c.clone(), changed)
@@ -61,8 +77,8 @@ pub fn set_config(
     }
 
     // Only restart the timer countdown when the interval actually changed,
-    // so fiddling with intensity/autostart doesn't keep pushing the next
-    // reminder back indefinitely.
+    // so fiddling with intensity/autostart/overlay settings doesn't keep
+    // pushing the next reminder back indefinitely.
     if interval_changed {
         state.timer.set_interval(new_cfg.interval_min);
     }
@@ -86,4 +102,14 @@ pub fn trigger_shake(
 #[tauri::command]
 pub fn test_shake(app: AppHandle, intensity: u32) -> Result<(), String> {
     crate::shake::run_shake(&app, intensity.clamp(1, 10))
+}
+
+/// Hide the overlay window. Called from the overlay's close button when the
+/// app is in manual overlay-dismiss mode.
+#[tauri::command]
+pub fn close_overlay(app: AppHandle) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("overlay") {
+        let _ = w.hide();
+    }
+    Ok(())
 }

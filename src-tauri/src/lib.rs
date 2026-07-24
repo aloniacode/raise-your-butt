@@ -71,6 +71,7 @@ pub fn run() {
             commands::set_config,
             commands::trigger_shake,
             commands::test_shake,
+            commands::close_overlay,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

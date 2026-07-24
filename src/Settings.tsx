@@ -5,12 +5,16 @@ interface ConfigDto {
   interval_min: number;
   autostart: boolean;
   intensity: number;
+  overlay_mode: string; // "auto" | "manual"
+  overlay_duration_sec: number;
 }
 
 export default function Settings() {
   const [interval, setInterval] = useState<number>(30);
   const [intensity, setIntensity] = useState<number>(5);
   const [autostart, setAutostart] = useState<boolean>(false);
+  const [overlayMode, setOverlayMode] = useState<string>("auto");
+  const [overlayDuration, setOverlayDuration] = useState<number>(5);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -20,6 +24,8 @@ export default function Settings() {
         setInterval(cfg.interval_min);
         setIntensity(cfg.intensity);
         setAutostart(cfg.autostart);
+        setOverlayMode(cfg.overlay_mode);
+        setOverlayDuration(cfg.overlay_duration_sec);
       } finally {
         setLoaded(true);
       }
@@ -35,8 +41,10 @@ export default function Settings() {
       intervalMin: interval,
       autostart,
       intensity,
+      overlayMode,
+      overlayDurationSec: overlayDuration,
     }).catch(() => {});
-  }, [loaded, interval, intensity, autostart]);
+  }, [loaded, interval, intensity, autostart, overlayMode, overlayDuration]);
 
   const testShake = () => {
     invoke("test_shake", { intensity }).catch(() => {});
@@ -81,6 +89,43 @@ export default function Settings() {
         </div>
       </div>
 
+      <div className="field">
+        <div className="field-label">提醒窗口关闭方式</div>
+        <div className="segmented">
+          <button
+            className={`seg ${overlayMode === "auto" ? "active" : ""}`}
+            onClick={() => setOverlayMode("auto")}
+          >
+            自动关闭
+          </button>
+          <button
+            className={`seg ${overlayMode === "manual" ? "active" : ""}`}
+            onClick={() => setOverlayMode("manual")}
+          >
+            手动关闭
+          </button>
+        </div>
+      </div>
+
+      {overlayMode === "auto" && (
+        <div className="field">
+          <div className="field-label">提醒窗口显示时长（秒）</div>
+          <div className="field-control">
+            <input
+              type="number"
+              min={2}
+              max={30}
+              value={overlayDuration}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!Number.isNaN(v)) setOverlayDuration(Math.min(30, Math.max(2, v)));
+              }}
+            />
+            <span className="field-value">秒</span>
+          </div>
+        </div>
+      )}
+
       <div className="field toggle-row">
         <div className="field-label" style={{ alignSelf: "center" }}>
           开机自启动
@@ -100,7 +145,10 @@ export default function Settings() {
       </button>
 
       <div className="status">
-        每 {interval} 分钟提醒一次，强度 {intensity} / 10
+        每 {interval} 分钟提醒一次，强度 {intensity} / 10，窗口
+        {overlayMode === "auto"
+          ? `自动关闭（${overlayDuration} 秒）`
+          : "手动关闭"}
       </div>
     </div>
   );
