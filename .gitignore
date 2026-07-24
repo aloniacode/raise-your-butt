@@ -22,3 +22,5 @@ src-tauri/gen/schemas/
 
 # Generated icon source (keep the icons/ folder)
 app-icon.png
+
+.workbuddy/
