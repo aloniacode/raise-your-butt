@@ -39,7 +39,9 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
 fn show_settings(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("settings") {
-        let _ = w.show();
-        let _ = w.set_focus();
+        // Use the shared helper so hide/show stay symmetric — on Windows
+        // this unminimizes + re-shows the taskbar entry that hide_window
+        // removed. See window_util::show_window for the platform specifics.
+        let _ = crate::window_util::show_window(&w);
     }
 }

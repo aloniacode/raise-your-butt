@@ -3,6 +3,7 @@ mod config;
 mod shake;
 mod timer;
 mod tray;
+mod window_util;
 
 use std::sync::Mutex;
 
@@ -59,7 +60,11 @@ pub fn run() {
                 w.on_window_event(move |e| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = e {
                         api.prevent_close();
-                        let _ = w2.hide();
+                        // On Windows, a plain hide() leaves the WebView2
+                        // window un-restorable from the tray; hide_window
+                        // uses minimize + skip_taskbar instead. See
+                        // window_util::hide_window for the platform details.
+                        let _ = crate::window_util::hide_window(&w2);
                     }
                 });
             }
