@@ -1,242 +1,134 @@
-/* ========== Reset & global ========== */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* shadcn/ui theme tokens — zinc palette.
+   The dark variant's --background is `240 10% 3.9%` = #09090b = zinc-950.
+   Theme is light/dark/system (defaults to system); the inline script in
+   index.html toggles <html class="dark"> before React mounts. */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 3.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 3.9%;
+  --primary: 240 10% 3.9%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 240 4.8% 95.9%;
+  --secondary-foreground: 240 5.9% 10%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 240 3.8% 46.1%;
+  --accent: 240 4.8% 95.9%;
+  --accent-foreground: 240 5.9% 10%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+  --ring: 240 10% 3.9%;
+  --radius: 0.5rem;
 }
 
-html,
-body,
-#root {
-  width: 100%;
-  height: 100%;
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 240 10% 3.9%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 240 4.9% 83.9%;
 }
 
-body {
-  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
-  color: #e8eaed;
-  background: transparent;
-  -webkit-user-select: none;
-  user-select: none;
-  overflow: hidden;
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ========== Settings window ========== */
-.settings {
-  width: 100%;
-  height: 100%;
-  padding: 20px 22px;
-  background: linear-gradient(160deg, #1c1f26 0%, #14161b 100%);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  overflow-y: auto;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+  }
+  body {
+    @apply text-foreground;
+    /* Keep transparent so the overlay window (transparent: true in
+       tauri.conf.json) stays see-through. The settings window gets its
+       zinc-950 background from its root <div>, not from <body>. */
+    background: transparent;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+      Arial, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  /* Thin scrollbar, no track background — shadcn/ui style. Uses the theme's
+     --border token so it adapts to light/dark. The overlay window doesn't
+     scroll, so this only affects the settings panel. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground));
+  }
 }
 
-.settings-header h1 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #ffffff;
-  letter-spacing: 0.5px;
-}
-
-.settings-header .subtitle {
-  font-size: 12px;
-  color: #9aa0a6;
-  margin-top: 2px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-}
-
-.field-label {
-  font-size: 12px;
-  color: #bdc1c6;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-
-.field-control {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.field-value {
-  font-size: 14px;
-  color: #ffffff;
-  min-width: 32px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-input[type="number"] {
-  flex: 1;
-  height: 32px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #ffffff;
-  padding: 0 10px;
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-}
-
-input[type="number"]:focus {
-  border-color: #4d8df0;
-}
-
-input[type="range"] {
-  flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
-  outline: none;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #4d8df0;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid #1c1f26;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: #4d8df0;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid #1c1f26;
-}
-
-.toggle-row {
-  flex-direction: row;
-  justify-content: space-between;
-}
-
-.switch {
-  position: relative;
-  width: 42px;
-  height: 24px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.slider::before {
-  content: "";
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  left: 3px;
-  top: 3px;
-  background: #ffffff;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
-.switch input:checked + .slider {
-  background: #4d8df0;
-}
-
-.switch input:checked + .slider::before {
-  transform: translateX(18px);
-}
-
-/* ========== Segmented control (overlay mode switch) ========== */
-.segmented {
-  display: flex;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 4px;
-}
-
-.seg {
-  flex: 1;
-  padding: 8px 10px;
-  background: transparent;
-  color: #bdc1c6;
-  border: none;
-  border-radius: 7px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.05s;
-  font-family: inherit;
-}
-
-.seg:hover {
-  color: #ffffff;
-}
-
-.seg.active {
-  background: #4d8df0;
-  color: #ffffff;
-}
-
-.seg:active {
-  transform: scale(0.97);
-}
-
-button.test {
-  margin-top: auto;
-  padding: 12px 16px;
-  background: #4d8df0;
-  color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.05s;
-  font-family: inherit;
-}
-
-button.test:hover {
-  background: #3a7be0;
-}
-
-button.test:active {
-  transform: scale(0.98);
-}
-
-.status {
-  font-size: 11px;
-  color: #7a8088;
-  text-align: center;
-  margin-top: 6px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ========== Overlay window ========== */
+/* ========== Overlay window (NOT migrated to Tailwind — kept verbatim) ==========
+   The overlay is a transparent full-screen modal with its own visual language
+   (white card on dimmed backdrop). It intentionally does not use the zinc
+   dark theme. */
 .overlay-bg {
   position: fixed;
   inset: 0;

@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>久坐提醒</title>
+    <script>
+      // Apply theme before React mounts to avoid FOUC. Defaults to following
+      // the OS preference; a stored 'light' | 'dark' overrides it.
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          var sysDark = window.matchMedia(
+            "(prefers-color-scheme: dark)"
+          ).matches;
+          var isDark = t === "dark" || ((!t || t === "system") && sysDark);
+          document.documentElement.classList.toggle("dark", isDark);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
