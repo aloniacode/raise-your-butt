@@ -38,6 +38,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
         with:
           tagName: ${{ github.ref_name }}
           releaseName: '久坐提醒 v__VERSION__'
