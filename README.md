@@ -1,5 +1,9 @@
 # raise-your-butt · 久坐提醒
 
+<p align="center">
+  <img src="src-tauri/icons/128x128.png" width="128" alt="久坐提醒图标" />
+</p>
+
 Tauri 2 桌面应用 — 系统托盘常驻，按设定间隔触发「系统通知 + 全屏覆盖层屏幕抖动」提醒你起身活动。
 
 ## 功能
@@ -11,13 +15,16 @@ Tauri 2 桌面应用 — 系统托盘常驻，按设定间隔触发「系统通�
 - 🔔 **系统通知** — 「该起身活动啦！久坐伤身，起来走走吧」。
 - 💥 **屏幕抖动** — 通过 `tauri` 原生 `WebviewWindow::set_position` 在一个全屏透明、置顶、跳过任务栏的「覆盖层窗口」上跑 36 步阻尼正弦位移（≈ 800ms），叠加覆盖层卡片自身的 CSS 抖动；抖动循环跑在 `tauri::async_runtime`（tokio）任务上，不占用独立 OS 线程。
 - 🚪 **提醒窗口关闭模式** — **自动模式**：抖动结束后按设定时长（默认 5 秒）自动隐藏覆盖层；**手动模式**：覆盖层不自动消失，显示「我知道了」关闭按钮，点击后才隐藏。
+- 🎨 **亮 / 暗 / 跟随系统主题** — shadcn/ui zinc 色板，`light / dark / system` 三态切换，默认跟随系统偏好；`localStorage` 持久化 + `index.html` 内联 script 防首屏闪烁。
 - 🚀 **开机自启动** — 通过 `tauri-plugin-autostart` 注册 / 注销 Windows Run-key。
 - 🎨 **铅笔画风格图标** — 白底黑线的小人从椅子上起身 + 向上箭头，传达「起身活动」。
 
 ## 技术栈
 
-- **Tauri 2** (Windows 目标)
+- **Tauri 2**（Windows 目标）
 - **React 19 + TypeScript + Vite 8**
+- **Tailwind v4 + shadcn/ui**（zinc 色板，CSS 变量实现 light/dark 主题；组件手写源码在 `src/components/ui/`）
+- **@iconify/react + @iconify-json/tabler**（离线图标注册，桌面应用无需 Iconify HTTP API；路径别名 `@/*`）
 - **Rust 异步**：tokio（`select!` + `Notify` 实现可重置定时器）
 - 插件：`tauri-plugin-autostart`、`tauri-plugin-store`、`tauri-plugin-notification`
 
@@ -29,12 +36,16 @@ raise-your-butt/
 ├── package.json
 ├── tsconfig.json / tsconfig.node.json
 ├── vite.config.ts
+├── components.json             # shadcn CLI 配置
 ├── src/                        # React 前端（单 SPA 双窗口）
 │   ├── main.tsx
 │   ├── App.tsx                 # 按 window label 分支
-│   ├── Settings.tsx            # 设置弹窗 UI
+│   ├── Settings.tsx            # 设置弹窗 UI（shadcn 组件）
 │   ├── Overlay.tsx             # 全屏覆盖层 UI（监听 shake-start）
-│   └── styles.css
+│   ├── styles.css              # Tailwind 入口 + shadcn 主题变量
+│   ├── hooks/use-theme.ts      # light/dark/system 主题 hook
+│   ├── lib/utils.ts            # cn() class 合并工具
+│   └── components/ui/          # shadcn/ui 组件（button/card/input/label/slider/switch/tabs）
 ├── src-tauri/
 │   ├── Cargo.toml
 │   ├── build.rs
@@ -49,6 +60,7 @@ raise-your-butt/
 │       ├── timer.rs            # 后台倒计时 + Notify 重置
 │       ├── shake.rs            # 覆盖层显示 + 异步 set_position 抖动循环 + 按模式自动/手动隐藏
 │       ├── tray.rs             # 托盘图标 + 右键菜单 + 左键唤出设置
+│       ├── window_util.rs      # Windows WebView2 hide() 修复（minimize + skip_taskbar）
 │       └── commands.rs         # get_config / set_config / trigger_shake / test_shake / close_overlay
 └── README.md
 ```
@@ -113,6 +125,7 @@ pnpm tauri build
 - **`MacosLauncher::LaunchAgent` 报错**：把 `src-tauri\src\lib.rs` 里改成对应版本里有的枚举变体；Windows 下此参数完全忽略。
 - **托盘上图标是一片白色方块或很糊**：`pnpm tauri icon ./app-icon.png` 重新生成多尺寸；16×16 / 32×32 自动缩放通常是清晰的。
 - **关掉设置窗口后进程真的退了**：确保 `src-tauri\src\lib.rs` 的 `setup()` 里 `on_window_event(CloseRequested)` 拦截块存在；本项目已包含。
+- **关掉设置窗口后无法从托盘恢复（Windows）**：WebView2 已知问题 — `hide()` 后 `show()` 失效。本项目已在 Windows 上改用 `minimize()` + `set_skip_taskbar(true)` 模拟隐藏（见 `window_util` 模块），托盘点「设置」可稳定恢复。macOS/Linux 保持原生 `hide()`。
 - **`Error: permission X not found`**：打开警告中提示的核心 capability 名加进 `src-tauri\capabilities\default.json` 的 `permissions` 数组里。
 
 ## 设计备注
@@ -128,7 +141,7 @@ pnpm tauri build
   36 帧、每帧 `sleep` ≈22ms 的动画用 `tauri::async_runtime::spawn` + `tokio::time::sleep` 协作调度，帧间让出执行权，避免为一个 800ms 动画独占一整个 OS 线程。`set_position` 是快速同步窗口调用，在 async 任务里直接调用开销可忽略。
 - **为什么关窗口不退出进程？**
 
-  常驻托盘应用 — `CloseRequested` 触发 `prevent_close()` + `hide()`，进程继续运行以维持定时器和托盘图标。
+  常驻托盘应用 — `CloseRequested` 触发 `prevent_close()`，进程继续运行以维持定时器和托盘图标。Windows 上由于 WebView2 的已知问题（`hide()` 后托盘 `show()` 无法恢复），改用 `minimize()` + `set_skip_taskbar(true)` 模拟隐藏（封装在 `window_util` 模块），`unminimize()` 可稳定恢复。macOS/Linux 保持原生 `hide()`。
 
 ## License
 
