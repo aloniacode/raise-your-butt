@@ -1,6 +1,6 @@
 [package]
 name = "raise-your-butt"
-version = "1.0.0"
+version = "1.0.1"
 description = "久坐提醒"
 edition = "2021"
 
