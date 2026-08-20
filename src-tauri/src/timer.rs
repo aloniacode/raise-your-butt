@@ -52,6 +52,22 @@ pub fn spawn(app: AppHandle) {
 }
 
 fn fire(app: &AppHandle) {
+    // Paused: the countdown keeps cycling, but no reminder (notification or
+    // shake) is emitted until the user turns the pause switch back off.
+    // Guard is dropped before the side effects below to avoid re-locking
+    // (run_shake takes the same lock for its own settings).
+    let (paused, intensity) = {
+        let state = app.state::<AppState>();
+        let cfg = state
+            .config
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        (cfg.paused, cfg.intensity)
+    };
+    if paused {
+        return;
+    }
+
     // System notification.
     let _ = app
         .notification()
@@ -61,12 +77,5 @@ fn fire(app: &AppHandle) {
         .show();
 
     // Screen shake with current intensity.
-    let intensity = {
-        app.state::<AppState>()
-            .config
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .intensity
-    };
     let _ = crate::shake::run_shake(app, intensity);
 }

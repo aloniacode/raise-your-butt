@@ -35,6 +35,10 @@ pub struct AppConfig {
     pub intensity: u32,
     pub overlay_mode: OverlayMode,
     pub overlay_duration_sec: u32,
+    /// Session pause: while true, the countdown keeps cycling but the
+    /// reminder (notification + shake) is suppressed. Persisted so the
+    /// settings switch reflects the last choice.
+    pub paused: bool,
 }
 
 impl Default for AppConfig {
@@ -45,6 +49,7 @@ impl Default for AppConfig {
             intensity: DEFAULT_INTENSITY,
             overlay_mode: DEFAULT_OVERLAY_MODE,
             overlay_duration_sec: DEFAULT_OVERLAY_DURATION_SEC,
+            paused: false,
         }
     }
 }
@@ -88,12 +93,19 @@ impl AppConfig {
             .unwrap_or(DEFAULT_OVERLAY_DURATION_SEC)
             .clamp(OVERLAY_DURATION_MIN, OVERLAY_DURATION_MAX);
 
+        // Older stores predate `paused`; missing key falls back to false.
+        let paused = store
+            .get("paused")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
         Ok(Self {
             interval_min,
             autostart,
             intensity,
             overlay_mode,
             overlay_duration_sec,
+            paused,
         })
     }
 
@@ -104,6 +116,7 @@ impl AppConfig {
         store.set("intensity", json!(self.intensity));
         store.set("overlay_mode", json!(self.overlay_mode));
         store.set("overlay_duration_sec", json!(self.overlay_duration_sec));
+        store.set("paused", json!(self.paused));
         store.save().map_err(|e| e.to_string())?;
         Ok(())
     }

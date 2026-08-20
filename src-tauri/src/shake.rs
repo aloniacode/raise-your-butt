@@ -80,7 +80,7 @@ pub fn run_shake(app: &AppHandle, intensity: u32) -> Result<(), String> {
     // async task avoids dedicating a whole OS thread to an 800ms animation and
     // lets `tokio::time::sleep` yield cooperatively between frames.
     let app2 = app.clone();
-    tauri::async_runtime::spawn(async move {
+    let handle = tauri::async_runtime::spawn(async move {
         let max = offset_px(intensity);
         let steps: u32 = 36;
         let total_ms: u64 = 800;
@@ -115,6 +115,17 @@ pub fn run_shake(app: &AppHandle, intensity: u32) -> Result<(), String> {
             let _ = w.hide();
         }
     });
+
+    // Track the animation task so a new shake can abort a still-running one,
+    // preventing two animations from fighting over the window position.
+    let state = app.state::<AppState>();
+    let mut task = state
+        .shake_task
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
+    if let Some(prev) = task.replace(handle) {
+        prev.abort();
+    }
 
     Ok(())
 }

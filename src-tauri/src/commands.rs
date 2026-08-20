@@ -11,6 +11,7 @@ pub struct ConfigDto {
     pub intensity: u32,
     pub overlay_mode: OverlayMode,
     pub overlay_duration_sec: u32,
+    pub paused: bool,
 }
 
 #[tauri::command]
@@ -25,6 +26,7 @@ pub fn get_config(state: tauri::State<'_, AppState>) -> ConfigDto {
         intensity: c.intensity,
         overlay_mode: c.overlay_mode,
         overlay_duration_sec: c.overlay_duration_sec,
+        paused: c.paused,
     }
 }
 
@@ -37,6 +39,7 @@ pub fn set_config(
     intensity: Option<u32>,
     overlay_mode: Option<String>,
     overlay_duration_sec: Option<u32>,
+    paused: Option<bool>,
 ) -> Result<(), String> {
     // Update + persist + capture the new config while holding the lock briefly.
     let (new_cfg, interval_changed) = {
@@ -62,6 +65,9 @@ pub fn set_config(
         }
         if let Some(v) = overlay_duration_sec {
             c.overlay_duration_sec = v.clamp(OVERLAY_DURATION_MIN, OVERLAY_DURATION_MAX);
+        }
+        if let Some(v) = paused {
+            c.paused = v;
         }
         c.save(&app)?;
         let changed = old_interval != c.interval_min;
@@ -112,4 +118,15 @@ pub fn close_overlay(app: AppHandle) -> Result<(), String> {
         let _ = w.hide();
     }
     Ok(())
+}
+
+/// Hide the settings window (close-to-tray) from the custom title-bar close
+/// button. The settings window runs undecorated, so there is no native close
+/// button; this mirrors what the old close-to-tray flow did.
+#[tauri::command]
+pub fn hide_settings(app: AppHandle) -> Result<(), String> {
+    let w = app
+        .get_webview_window("settings")
+        .ok_or_else(|| "settings window not found".to_string())?;
+    crate::window_util::hide_window(&w).map_err(|e| e.to_string())
 }

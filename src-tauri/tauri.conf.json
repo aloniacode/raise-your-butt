@@ -19,7 +19,7 @@
                 "resizable": false,
                 "maximizable": false,
                 "visible": false,
-                "decorations": true,
+                "decorations": false,
                 "center": true,
                 "skipTaskbar": true,
                 "alwaysOnTop": false,

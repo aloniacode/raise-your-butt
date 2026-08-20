@@ -16,6 +16,10 @@ use crate::timer::TimerHandle;
 pub struct AppState {
     pub config: Mutex<AppConfig>,
     pub timer: TimerHandle,
+    /// Handle of the currently running shake animation task, if any. Stored
+    /// so a new shake replaces a still-running one instead of two animations
+    /// fighting over the overlay position.
+    pub shake_task: Mutex<Option<tauri::async_runtime::JoinHandle<()>>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -36,6 +40,7 @@ pub fn run() {
             app.manage(AppState {
                 config: Mutex::new(cfg.clone()),
                 timer,
+                shake_task: Mutex::new(None),
             });
 
             // 3. Size the overlay window to the primary monitor before first show.
@@ -77,6 +82,7 @@ pub fn run() {
             commands::trigger_shake,
             commands::test_shake,
             commands::close_overlay,
+            commands::hide_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

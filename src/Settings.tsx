@@ -16,6 +16,7 @@ interface ConfigDto {
   intensity: number;
   overlay_mode: string; // "auto" | "manual"
   overlay_duration_sec: number;
+  paused: boolean;
 }
 
 export default function Settings() {
@@ -24,6 +25,7 @@ export default function Settings() {
   const [autostart, setAutostart] = useState<boolean>(false);
   const [overlayMode, setOverlayMode] = useState<string>("auto");
   const [overlayDuration, setOverlayDuration] = useState<number>(5);
+  const [paused, setPaused] = useState<boolean>(false);
   const [loaded, setLoaded] = useState(false);
 
   // Theme: light / dark / system. Defaults to "system" (follows the OS).
@@ -38,6 +40,7 @@ export default function Settings() {
         setAutostart(cfg.autostart);
         setOverlayMode(cfg.overlay_mode);
         setOverlayDuration(cfg.overlay_duration_sec);
+        setPaused(cfg.paused);
       } finally {
         setLoaded(true);
       }
@@ -55,18 +58,45 @@ export default function Settings() {
       intensity,
       overlayMode,
       overlayDurationSec: overlayDuration,
+      paused,
     }).catch(() => {});
-  }, [loaded, interval, intensity, autostart, overlayMode, overlayDuration]);
+  }, [loaded, interval, intensity, autostart, overlayMode, overlayDuration, paused]);
 
   const testShake = () => {
     invoke("test_shake", { intensity }).catch(() => {});
+  };
+
+  // The settings window is undecorated, so the title-bar close button is
+  // rendered here. It hides to the tray, exactly like the native close did.
+  const closeSettings = () => {
+    invoke("hide_settings").catch(() => {});
   };
 
   return (
     // Root background adapts to the active theme (zinc-950 in dark, white in
     // light). body stays transparent so the overlay window keeps its own
     // transparent backdrop.
-    <div className="bg-background text-foreground flex h-full w-full flex-col gap-4 overflow-y-auto p-5">
+    <div className="bg-background text-foreground flex h-full w-full flex-col">
+      {/* Custom title bar — the settings window is undecorated, so the title
+          and close button are rendered here. `data-tauri-drag-region="deep"`
+          makes the whole header draggable; the close <button> blocks drag
+          and stays clickable. */}
+      <header
+        className="relative flex h-10 shrink-0 items-center justify-center border-b"
+        data-tauri-drag-region="deep"
+      >
+        <span className="text-sm font-medium">久坐提醒设置</span>
+        <button
+          type="button"
+          aria-label="关闭"
+          onClick={closeSettings}
+          className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Icon icon="tabler:x" className="size-4" />
+        </button>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
       {/* Reminder interval */}
       <div className="flex flex-col gap-2">
         <Label>提醒间隔</Label>
@@ -177,6 +207,12 @@ export default function Settings() {
         <Switch checked={autostart} onCheckedChange={setAutostart} />
       </div>
 
+      {/* Pause: countdown keeps running but the reminder doesn't fire. */}
+      <div className="flex items-center justify-between">
+        <Label>暂停提醒</Label>
+        <Switch checked={paused} onCheckedChange={setPaused} />
+      </div>
+
       {/* Test button — pinned to the bottom of the column */}
       <Button className="mt-auto" onClick={testShake}>
         <Icon icon="tabler:device-mobile-vibrate" className="size-4" />
@@ -190,6 +226,7 @@ export default function Settings() {
           ? `自动关闭（${overlayDuration} 秒）`
           : "手动关闭"}
       </p>
+      </div>
     </div>
   );
 }
